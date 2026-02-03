@@ -39,12 +39,17 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
   private _objects: any;
   private _entity_ids: string[];
   private _visible: any[];
-  // Faz-0 Editor Backbone: deterministic transactional editor (single commit gate)
-  private _commitScheduled = false;
-  private _commitTimer?: number;
+  // Faz-0 Transactional Editor Backbone (Deterministic Commit Scheduler)
+  // Render scheduler ile aynı omurga:
+  // Guard → Coalesce → RAF Flush Only → Cancel
+  private _commitRaf?: number;
+  private _commitPending = false;
+  private _commitDirty = false;
+  private _commitReason?: string;
+  // Faz-0 Typing Policy (Visual Editor): valueChanged için debounce window
+  private _typingDebounceTimer?: number;
+  private _typingDebounceMs = 600;
 
-  // Faz-0 Editor Backbone: Commit debounce (ms)
-  private _commitDebounceMs = 600;
   // Faz-0 PRO Backbone (Editor): single-center pro_log (throttled, opt-in)
   private _proLogEditor = false;
   private _proLogState = createProLogState(2000);
@@ -87,29 +92,80 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     proLog(this._proLogState, this._proSkillEnabled('editor'), 'EDITOR', message, throttleKey);
   }
 
-  // Faz-0 Editor Backbone:
-  private _commitConfig(reason?: string): void {
-    if (!this._config || !this.hass) {
+  // Faz-0 Transactional Editor Backbone
+  // Deterministic Commit Scheduler (Render scheduler eşleniği)
+
+  // Guard gate (mutlak): commit mümkün değilse iz bırakma
+  private _canCommit(): boolean {
+    if (!this._config) return false;
+    if (!this.hass) return false;
+    return true;
+  }
+
+  // Cancel mekanizması (lifecycle kapanırken)
+  private _cancelScheduledCommit(): void {
+    if (this._commitRaf !== undefined) {
+      window.cancelAnimationFrame(this._commitRaf);
+      this._commitRaf = undefined;
+    }
+
+    // Faz-0 Typing Policy: hostile lifecycle exit → typing debounce iptal
+    if (this._typingDebounceTimer !== undefined) {
+      window.clearTimeout(this._typingDebounceTimer);
+      this._typingDebounceTimer = undefined;
+    }
+ 
+    this._commitPending = false;
+    this._commitDirty = false;
+    this._commitReason = undefined;
+  }
+
+  // Coalesce gate: aynı frame’de 100 tetik → 1 flush
+  private _requestCommit(reason?: string): void {
+    // Guard (mutlak)
+    if (!this._canCommit()) {
       return;
     }
 
-    // Faz-0 Editor Backbone: Commit debounce
-    if (this._commitTimer) {
-      window.clearTimeout(this._commitTimer);
+    // Dirty mark (config değişti)
+    this._commitDirty = true;
+    this._commitReason = reason;
+
+    // Coalesce
+    if (this._commitPending) {
+      // Faz-0 Backbone Debug: spam geldi ama aynı frame’de toplandı
+      this._proEditorLog(
+        `commit coalesced${reason ? ` (${reason})` : ''}`,
+        'commit:coalesced'
+      );
+      return;
     }
 
-    this._commitTimer = window.setTimeout(() => {
-      this._commitTimer = undefined;
+    this._commitPending = true;
 
-      // Faz-0 PRO Backbone (Editor): throttled log (no spam)
+    // Render scheduler gibi: sadece RAF içinden emit
+    this._commitRaf = window.requestAnimationFrame(() => {
+      this._commitRaf = undefined;
+      this._commitPending = false;
+
+      // Flush only if dirty
+      if (!this._commitDirty) {
+        return;
+      }
+
+      this._commitDirty = false;
+
+      const r = this._commitReason;
+      this._commitReason = undefined;
+
+      // Faz-0 PRO Backbone (Editor): throttled log
       this._proEditorLog(
-        `config-changed fired${reason ? ` (${reason})` : ''}`,
-        reason ? `config-changed:${reason}` : 'config-changed'
+        `config-changed fired${r ? ` (${r})` : ''}`,
+        r ? `config-changed:${r}` : 'config-changed'
       );
-      // Faz-1 PRO Skill: EDITOR ENGINE GATE (LATE) — commit dispatch
-      // pro_skill: editor ON Active Commit Closed Only Manual
-      if (this._proSkillEnabled('editor') && reason !== 'manual') {
-        // Skill-gated DOMAIN LOG: Active Commit Closed
+
+      // Faz-1 PRO Skill: EDITOR gate (manual hariç commit kapalı)
+      if (this._proSkillEnabled('editor') && r !== 'manual') {
         proLog(
           this._proLogState,
           this._proSkillEnabled('editor'),
@@ -124,11 +180,44 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
         this.requestUpdate();
         return;
       }
+      // Faz-0 Backbone Debug: gerçek commit flush (1 frame → 1 emit)
+      this._proEditorLog(
+        `commit flush emit${r ? ` (${r})` : ''}`,
+        'commit:flush'
+      );
 
+      // Single deterministic emit
       fireEvent(this, 'config-changed', { config: this._config });
-    }, this._commitDebounceMs);
+    });
   }
 
+  // Public entry: legacy name korunur
+  private _commitConfig(reason?: string): void {
+    // Faz-0 Typing Policy (Visual Editor):
+    // - valueChanged (typing) → time-window batching (debounce)
+    // - diğer reason’lar → mevcut RAF backbone aynen
+    if (reason === 'valueChanged') {
+      if (this._typingDebounceTimer !== undefined) {
+        window.clearTimeout(this._typingDebounceTimer);
+        this._typingDebounceTimer = undefined;
+      }
+
+      this._typingDebounceTimer = window.setTimeout(() => {
+        this._typingDebounceTimer = undefined;
+        this._requestCommit('valueChanged');
+      }, this._typingDebounceMs);
+
+      return;
+    }
+
+    // Typing dışı bir aksiyon geldiyse, bekleyen typing debounce’ı iptal et ve anında backbone’a gir
+    if (this._typingDebounceTimer !== undefined) {
+      window.clearTimeout(this._typingDebounceTimer);
+      this._typingDebounceTimer = undefined;
+    }
+
+    this._requestCommit(reason);
+  }
 
   // eslint-disable-next-line @typescript-eslint/explicit-module-boundary-types
 
@@ -139,6 +228,14 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     // Faz-0 PRO Backbone (Editor): throttled log
     this._proApplyConfig();
     this._proEditorLog('requestRender: connected', 'requestRender:connected', 'connected');
+  }
+
+  disconnectedCallback() {
+    super.disconnectedCallback();
+
+    // Faz-0 Transactional Editor Backbone:
+    // Hostile lifecycle: pending commit mutlaka iptal edilir
+    this._cancelScheduledCommit();
   }
 
   public setConfig(config: Floor3dCardConfig): void {
@@ -176,6 +273,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     this._configArray = createEditorConfigArray(this._config);
     this._configObjectArray = createEditorObjectGroupConfigArray(this._config);
     this._configZoomArray = createEditorZoomConfigArray(this._config);
+    // Faz-0 Deterministic Correction: (Fix) prevent options array concat swelling on repeated setConfig()
+    // Keep same array references (this._options points to these arrays) → just clear deterministically.
+    this._entityOptionsGroupArray.length = 0;
+    this._entityOptionsArray.length = 0;
+    this._entityOptionsZoomArray.length = 0;
 
     for (const entityConfig of this._configArray) {
       if (entityConfig.light) {
