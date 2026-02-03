@@ -26,6 +26,14 @@
 
 ---
 
+## Context
+
+The original `floor3d-card` works exceptionally well and introduced a powerful idea: a true **digital twin** inside Home Assistant.  
+However, as models grow large and entity counts increase, natural performance and lifecycle limits emerge — not due to poor design, but because UI‑driven architectures do not scale like engines.  
+**This Project focuses on scaling and stabilization, not on rewriting the core idea.**
+
+---
+
 ## Overview
 
 **Floor3D Pro Card** is a Lovelace card for Home Assistant that enables the creation of a **3D digital twin** of a home based on its physical structure, Providing an **interactive 3D floor plan**. The card represents device and sensor data from Home Assistant through a three-dimensional home model in a **visual and interactive** manner.
@@ -42,11 +50,13 @@ The 3D scene is generated using a JavaScript-based 3D rendering infrastructure a
 
 ---
 
-## Context
+## Project Vision
 
-The original `floor3d-card` works exceptionally well and introduced a powerful idea: a true **digital twin** inside Home Assistant.  
-However, as models grow large and entity counts increase, natural performance and lifecycle limits emerge — not due to poor design, but because UI‑driven architectures do not scale like engines.  
-**This Project focuses on scaling and stabilization, not on rewriting the core idea.**
+>**Floor3D Pro Card is part of a future 3-module ecosystem:**
+
+- Floor3D Pro Card → 3D Scene Engine  
+- Overlay Pro Card → UI Overlay Engine  
+- Scene3D → Full Interactive 3D Dashboard Platform
 
 ---
 
