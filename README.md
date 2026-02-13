@@ -1,6 +1,6 @@
 # Floor3D Pro Card – Game Engine Backbone Edition  
 
-![HACS Default](https://img.shields.io/badge/HACS-Default-fe7d37.svg?logo=homeassistant&logoColor=white) ![License MIT](https://img.shields.io/badge/License-MIT-97CA00.svg?logo=homeassistant&logoColor=white) ![Version](https://img.shields.io/github/v/release/levonisyas/floor3dpro-card.svg?label=Floor3D%20Pro%20Card&logo=homeassistant&logoColor=white&color=007ec6) ![Downloads](https://img.shields.io/github/downloads/levonisyas/floor3dpro-card/total.svg?label=Downloads&logo=homeassistant&logoColor=white&labelColor=555&color=5cb85c)  
+![HACS Default](https://img.shields.io/badge/HACS-Default-fe7d37.svg?logo=homeassistant&logoColor=white) ![License MIT](https://img.shields.io/badge/License-MIT-97CA00.svg?logo=homeassistant&logoColor=white) ![Version](https://img.shields.io/github/v/release/levonisyas/floor3dpro-card?label=Floor3D%20Pro%20Card&logo=homeassistant&logoColor=white&color=007ec6&style=flat) ![Downloads](https://img.shields.io/github/downloads/levonisyas/floor3dpro-card/total.svg?label=Downloads&logo=homeassistant&logoColor=white&labelColor=555&color=5cb85c)  
 
 ### Your Home Digital Twin for Home Assistant *(3D Lovelace Card)*
 
