@@ -273,11 +273,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     this._configArray = createEditorConfigArray(this._config);
     this._configObjectArray = createEditorObjectGroupConfigArray(this._config);
     this._configZoomArray = createEditorZoomConfigArray(this._config);
-    // Faz-0 Deterministic Correction: (Fix) prevent options array concat swelling on repeated setConfig()
-    // Keep same array references (this._options points to these arrays) → just clear deterministically.
-    this._entityOptionsGroupArray.length = 0;
-    this._entityOptionsArray.length = 0;
-    this._entityOptionsZoomArray.length = 0;
+
 
     for (const entityConfig of this._configArray) {
       if (entityConfig.light) {
