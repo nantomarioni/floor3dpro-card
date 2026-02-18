@@ -20,6 +20,7 @@ import { Floor3dCardConfig } from './types';
 import '../elements/formfield';
 import '../elements/select';
 import '../elements/textfield';
+import '../elements/button';
 
 //Faz-0 Isolation Correction: (Fix) DOM custom element isolation for pro components
 @customElement('floor3dpro-card-editor')
@@ -466,6 +467,12 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
 
     if (!this._options) {
       this._options = {
+        pro_feature_setting: {
+          icon: 'chart-tree',
+          name: 'Pro Feature Setting',
+          secondary: 'Customize pro features and editor workflow settings',
+          show: false,
+        },
         object_groups: {
           icon: 'group',
           name: 'Object Groups',
@@ -572,44 +579,149 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     // Faz-1 PRO Skill: EDITOR Commit Button
     const show = this._config.overlay ? this._config.overlay == 'yes' : false;
     return html`
-      ${this._proSkillEnabled('editor')
-        ? html`
-            <div class="sub-category" style="display: flex; flex-direction: row; align-items: center; gap: 8px;">
-              <ha-icon
-                @click=${() => {
-                  this._proEditorlLog('Manual Commit Send', 'editor:manual-commit');
-                  this._commitConfig('manual');
-                }}
-                icon="mdi:content-save-cog-outline"
-                class="ha-icon-large"
-                style="
-                  /* ICON COLOR OPTIONS */
-                  /* color: var(--primary-text-color); */
-                  color: var(--error-color);
-                "
-              >
-              </ha-icon>
 
-              <span
-                style="
-                  font-size: 16px;
-                  /* font-weight: 400; */
-                  line-height: 30px;
-                  margin-left: 7px;
-                  color: var(--error-color);
-                "
-              >
-                Commit Changes
-              </span>
+      ${Array.isArray((this._config as any)?.pro_skill) &&
+      (this._config as any).pro_skill.includes('editor')
+        ? html`
+
+            <div
+              class="card-config"
+              style="
+                border-right: 4px solid var(--primary-color);
+              "
+            >
+
+              <div class="optionPro">
+                <div class="row">
+                <ha-icon
+                  .icon=${`mdi:content-save-cog-outline`}
+                  style="color: var(--primary-color);"
+                ></ha-icon>
+                  <div class="title" style="margin-top: 0; color: var(--primary-color);">
+                    Apply your pending changes manually
+                  </div>
+                  <floor3dpro-button
+                    class="add-button"
+                    style="margin-left: auto;"
+                    label="+ SAVE"
+                    @click=${() => {
+                      this._proEditorlLog('Manual Commit Send', 'editor:manual-commit');
+                      this._commitConfig('manual');
+                    }}
+                  ></floor3dpro-button>
+
+                </div>
+
+              </div>
             </div>
+
           `
         : ``}
+      ${this._createProFeatureSettingElement()}
       ${this._createModelElement()} ${this._createAppearanceElement()}
       ${show ? html` ${this._createOverlayElement()} ` : ``} ${this._createEntitiesElement()}
       ${this._createObjectGroupsElement()} ${this._createZoomAreasElement()}
     `;
   }
 
+  private _asArray<T>(value: T | T[] | undefined | null): T[] {
+    if (!value) return [];
+    return Array.isArray(value) ? value : [value];
+  }
+
+  private _hasProLogEngine(): boolean {
+    const logs = this._asArray(this._config?.pro_log as any);
+    return logs.includes('engine') || logs.includes('all');
+  }
+
+  private _hasProSkill(skill: 'level' | 'editor' | 'mobile'): boolean {
+    const skills = this._asArray(this._config?.pro_skill as any);
+    return skills.includes(skill) || skills.includes('all');
+  }
+
+  private _setProLogEngine(enabled: boolean): void {
+    if (!this._config) return;
+    const current = this._asArray(this._config.pro_log as any).filter((x) => x !== 'all');
+    const next = enabled ? Array.from(new Set([...current, 'engine'])) : current.filter((x) => x !== 'engine');
+    this._config = { ...this._config, pro_log: next };
+    this._commitConfig('proFeatures');
+  }
+
+  private _setProSkill(skill: 'level' | 'editor' | 'mobile', enabled: boolean): void {
+    if (!this._config) return;
+    const current = this._asArray(this._config.pro_skill as any).filter((x) => x !== 'all');
+    const next = enabled ? Array.from(new Set([...current, skill])) : current.filter((x) => x !== skill);
+    this._config = { ...this._config, pro_skill: next };
+    this._commitConfig('proFeatures');
+  }
+
+  private _createProFeatureSettingElement(): TemplateResult {
+    if (!this.hass || !this._config || !this._options || !(this._options as any).pro_feature_setting) {
+      return html``;
+    }
+
+    const options = (this._options as any).pro_feature_setting;
+
+    const engine = this._hasProLogEngine();
+    const level = this._hasProSkill('level');
+    const editor = this._hasProSkill('editor');
+    const mobile = this._hasProSkill('mobile');
+
+    return html`
+      <div class="category" id="card">
+        <div class="sub-category" @click=${this._toggleThing} .options=${options} .optionsTarget=${this._options}>
+          <div class="row">
+            <ha-icon .icon=${`mdi:${options.icon}`}></ha-icon>
+            <div class="title">${options.name}</div>
+            <ha-icon .icon=${options.show ? `mdi:chevron-up` : `mdi:chevron-down`} style="margin-left: auto;"></ha-icon>
+          </div>
+          <div class="secondary">${options.secondary}</div>
+        </div>
+        ${options.show
+          ? html`
+              <div class="card-options" style="display: flex; flex-direction: column; align-items: left;">
+                <div class="pro-feature-skill-row">
+                  <div class="pro-feature-skill-item">
+                    <ha-switch
+                      .checked=${engine}
+                      @change=${(ev: Event) => this._setProLogEngine((ev.target as any).checked)}
+                    ></ha-switch>
+                    <span>Pro log engine</span>
+                  </div>
+                </div>
+
+                <div class="pro-feature-skill-row">
+                  <div class="pro-feature-skill-label">Pro skill modules</div>
+                  <div class="pro-feature-skill-toggles">
+                    <div class="pro-feature-skill-item">
+                      <ha-switch
+                        .checked=${level}
+                        @change=${(ev: Event) => this._setProSkill('level', (ev.target as any).checked)}
+                      ></ha-switch>
+                      <span>level</span>
+                    </div>
+                    <div class="pro-feature-skill-item">
+                      <ha-switch
+                        .checked=${editor}
+                        @change=${(ev: Event) => this._setProSkill('editor', (ev.target as any).checked)}
+                      ></ha-switch>
+                      <span>editor</span>
+                    </div>
+                    <div class="pro-feature-skill-item">
+                      <ha-switch
+                        .checked=${mobile}
+                        @change=${(ev: Event) => this._setProSkill('mobile', (ev.target as any).checked)}
+                      ></ha-switch>
+                      <span>mobile</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `
+          : ''}
+      </div>
+    `;
+  }
 
   private _preview_card(): Element {
     let root: any = document.querySelector('home-assistant');
@@ -713,8 +825,8 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
               `
             : html` <ha-icon icon="mdi:arrow-down" style="opacity: 25%;" class="ha-icon-large"></ha-icon> `}
           <ha-icon
-            class="ha-icon-large"
-            icon="mdi:close"
+
+            icon="mdi:trash-can-outline"
             @click=${this._removeObject_Group}
             .configAttribute=${'object_group'}
             .configArray=${'object_groups'}
@@ -813,8 +925,8 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
               `
             : html` <ha-icon icon="mdi:arrow-down" style="opacity: 25%;" class="ha-icon-large"></ha-icon> `}
           <ha-icon
-            class="ha-icon-large"
-            icon="mdi:close"
+
+            icon="mdi:trash-can-outline"
             @click=${this._removeZoomArea}
             .configAttribute=${'zoom'}
             .configArray=${'zoom_areas'}
@@ -922,8 +1034,8 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
               `
             : html` <ha-icon icon="mdi:arrow-down" style="opacity: 25%;" class="ha-icon-large"></ha-icon> `}
           <ha-icon
-            class="ha-icon-large"
-            icon="mdi:close"
+
+            icon="mdi:trash-can-outline"
             @click=${this._removeEntity}
             .configAttribute=${'entity'}
             .configArray=${'entities'}
@@ -966,14 +1078,14 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
               <div class="card-background" style="max-height: 400px; overflow: auto;">
                 ${this._createZoomAreasValues()}
                 <div class="sub-category" style="display: flex; flex-direction: column; align-items: flex-end;">
-                  <ha-icon
-                    class="ha-icon-large"
-                    icon="mdi:plus"
+                  <floor3dpro-button
+                    class="add-button"
+                    label="+ Add Zoom Area"
                     .configArray=${this._configZoomArray}
                     .configAddValue=${'zoom'}
                     .sourceArray=${this._config.zoom_areas}
                     @click=${this._addZoomArea}
-                  ></ha-icon>
+                  ></floor3dpro-button>
                 </div>
               </div>
             `
@@ -1003,14 +1115,14 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
               <div class="card-background" style="max-height: 400px; overflow: auto;">
                 ${this._createObjectGroupsValues()}
                 <div class="sub-category" style="display: flex; flex-direction: column; align-items: flex-end;">
-                  <ha-icon
-                    class="ha-icon-large"
-                    icon="mdi:plus"
+                  <floor3dpro-button
+                    class="add-button"
+                    label="+ Add Object Group"
                     .configArray=${this._configObjectArray}
                     .configAddValue=${'object_group'}
                     .sourceArray=${this._config.object_groups}
                     @click=${this._addObject_Group}
-                  ></ha-icon>
+                  ></floor3dpro-button>
                 </div>
               </div>
             `
@@ -1040,14 +1152,14 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
               <div class="card-background" style="max-height: 400px; overflow: auto;">
                 ${this._createEntitiesValues()}
                 <div class="sub-category" style="display: flex; flex-direction: column; align-items: flex-end;">
-                  <ha-icon
-                    class="ha-icon-large"
-                    icon="mdi:plus"
+                  <floor3dpro-button
+                    class="add-button"
+                    label="+ Add Entity"
                     .configArray=${this._configArray}
                     .configAddValue=${'entity'}
                     .sourceArray=${this._config.entities}
                     @click=${this._addEntity}
-                  ></ha-icon>
+                  ></floor3dpro-button>
                 </div>
               </div>
             `
@@ -1418,38 +1530,38 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                     <mwc-list-item value="yes">yes</mwc-list-item>
                     <mwc-list-item value="no">no</mwc-list-item>
                 </floor3dpro-select>
-                <paper-input
-                  editable
-                  label="North Direction {x: xxxx,z: zzzzzz }"
-                  .value=${config.north ? config.north : null}
+                <floor3dpro-textfield
+                  label="North Direction (JSON) e.g. {\"x\":0,\"z\":-1}"
+                  @input=${this._valueChanged}
+                  .value=${config.north ? JSON.stringify(config.north) : ''}
                   .configObject=${config}
                   .configAttribute=${'north'}
-                  @value-changed=${this._valueChanged}
-                ></paper-input>
-                <paper-input
-                  editable
-                  label="Camera Position"
-                  .value=${config.camera_position ? config.camera_position : null}
+                  .ignoreNull=${false}
+                ></floor3dpro-textfield>
+                <floor3dpro-textfield
+                  label="Camera Position (JSON)"
+                  @input=${this._valueChanged}
+                  .value=${config.camera_position ? JSON.stringify(config.camera_position) : ''}
                   .configObject=${config}
                   .configAttribute=${'camera_position'}
-                  @value-changed=${this._valueChanged}
-                ></paper-input>
-                <paper-input
-                  editable
-                  label="Camera Rotation"
-                  .value=${config.camera_rotate ? config.camera_rotate : null}
+                  .ignoreNull=${false}
+                ></floor3dpro-textfield>
+                <floor3dpro-textfield
+                  label="Camera Rotation (JSON)"
+                  @input=${this._valueChanged}
+                  .value=${config.camera_rotate ? JSON.stringify(config.camera_rotate) : ''}
                   .configObject=${config}
                   .configAttribute=${'camera_rotate'}
-                  @value-changed=${this._valueChanged}
-                ></paper-input>
-                <paper-input
-                  editable
-                  label="Camera Target"
-                  .value=${config.camera_target ? config.camera_target : null}
+                  .ignoreNull=${false}
+                ></floor3dpro-textfield>
+                <floor3dpro-textfield
+                  label="Camera Target (JSON)"
+                  @input=${this._valueChanged}
+                  .value=${config.camera_target ? JSON.stringify(config.camera_target) : ''}
                   .configObject=${config}
                   .configAttribute=${'camera_target'}
-                  @value-changed=${this._valueChanged}
-                ></paper-input>
+                  .ignoreNull=${false}
+                ></floor3dpro-textfield>
               </div>
             `
           : ''}
@@ -1757,12 +1869,12 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                     <div class="card-background" style="overflow: auto; max-height: 420px;">
                       ${arrayLength > 0 ? html` ${this._createObjectValues(index)} ` : ''}
                       <div class="sub-category" style="display: flex; flex-direction: column; align-items: flex-end;">
-                        <ha-icon
-                          class="ha-icon-large"
-                          icon="mdi:plus"
+                        <floor3dpro-button
+                          class="add-button"
+                          label="+ Add Object"
                           .index=${index}
                           @click=${this._addObject}
-                        ></ha-icon>
+                        ></floor3dpro-button>
                       </div>
                     </div>
                   `
@@ -1803,12 +1915,12 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                     <div class="card-background" style="overflow: auto; max-height: 420px;">
                       ${arrayLength > 0 ? html` ${this._createColorConditionValues(index)} ` : ''}
                       <div class="sub-category" style="display: flex; flex-direction: column; align-items: flex-end;">
-                        <ha-icon
-                          class="ha-icon-large"
-                          icon="mdi:plus"
+                        <floor3dpro-button
+                          class="add-button"
+                          label="+ Add Color Condition"
                           .index=${index}
                           @click=${this._addColorCondition}
-                        ></ha-icon>
+                        ></floor3dpro-button>
                       </div>
                     </div>
                   `
@@ -1865,8 +1977,8 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 `
               : html` <ha-icon icon="mdi:arrow-down" style="opacity: 25%;" class="ha-icon-large"></ha-icon> `}
             <ha-icon
-              class="ha-icon-large"
-              icon="mdi:close"
+
+              icon="mdi:trash-can-outline"
               @click=${this._removeObject}
               .index=${index}
               .objectIndex=${objectIndex}
@@ -1932,8 +2044,8 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                 `
               : html` <ha-icon icon="mdi:arrow-down" style="opacity: 25%;" class="ha-icon-large"></ha-icon> `}
             <ha-icon
-              class="ha-icon-large"
-              icon="mdi:close"
+
+              icon="mdi:trash-can-outline"
               @click=${this._removeColorCondition}
               .index=${index}
               .colorconditionIndex=${colorconditionIndex}
@@ -2222,14 +2334,14 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               <mwc-list-item value="yes">yes</mwc-list-item>
                               <mwc-list-item value="no">no</mwc-list-item>
                             </floor3dpro-select>
-                            <paper-input
-                              editable
-                              label="Light Direction (spot)"
-                              .value=${config.light.light_direction ? config.light.light_direction : ''}
+                            <floor3dpro-textfield
+                              label="Light Direction (spot) (JSON) e.g. {\"x\":0,\"y\":1,\"z\":0}"
+                              .value=${config.light.light_direction ? JSON.stringify(config.light.light_direction) : ''}
                               .configObject=${config.light}
                               .configAttribute=${'light_direction'}
-                              @value-changed=${this._valueChanged}
-                            ></paper-input>
+                              .ignoreNull=${false}
+                              @input=${this._valueChanged}
+                            ></floor3dpro-textfield>
                             <floor3dpro-textfield
                               label="Light Target Object (spot)"
                               .value=${config.light.light_target ? config.light.light_target : ''}
@@ -2446,22 +2558,22 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               })}
                             </floor3dpro-select>
                           `}
-                      <paper-input
-                        editable
-                        label="Zoom Direction {x: xxxx,y: yyyy, z: zzzz }"
-                        .value=${config.direction ? config.direction : null}
+                      <floor3dpro-textfield
+                        label="Zoom Direction (JSON) e.g. {\"x\":0,\"y\":0,\"z\":-1}"
+                        .value=${config.direction ? JSON.stringify(config.direction) : ''}
                         .configObject=${config}
                         .configAttribute=${'direction'}
-                        @value-changed=${this._valueChanged}
-                      ></paper-input>
-                      <paper-input
-                        editable
-                        label="Zoom Rotation {x: xxxx,y: yyyy, z: zzzz }"
-                        .value=${config.rotation ? config.rotation : null}
+                        .ignoreNull=${false}
+                        @input=${this._valueChanged}
+                      ></floor3dpro-textfield>
+                      <floor3dpro-textfield
+                        label="Zoom Rotation (JSON) e.g. {\"x\":0,\"y\":0,\"z\":0}"
+                        .value=${config.rotation ? JSON.stringify(config.rotation) : ''}
                         .configObject=${config}
                         .configAttribute=${'rotation'}
-                        @value-changed=${this._valueChanged}
-                      ></paper-input>
+                        .ignoreNull=${false}
+                        @input=${this._valueChanged}
+                      ></floor3dpro-textfield>
                       <floor3dpro-formfield alignEnd label="Distance (cm)">
                         <floor3dpro-textfield
                           type="number"
@@ -3146,6 +3258,56 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
       return;
     }
     const target = ev.target;
+    // Paper legacy fields -> stringify/parsing bridge (north/camera_*)
+    // Accepts JSON string or legacy "{ x: 0, y: 1, z: 2 }" style.
+    if (
+      target &&
+      typeof target.value === 'string' &&
+      (target.configAttribute === 'north' ||
+        target.configAttribute === 'camera_position' ||
+        target.configAttribute === 'camera_rotate' ||
+        target.configAttribute === 'camera_target' ||
+        target.configAttribute === 'direction' ||
+        target.configAttribute === 'rotation' ||
+        target.configAttribute === 'light_direction')
+    ) {
+      const raw = String(target.value).trim();
+
+      let parsed: any = null;
+
+      // 1) JSON first
+      try {
+        parsed = JSON.parse(raw);
+      } catch (_e) {
+        // 2) legacy key:value parse
+        const getNum = (k: 'x' | 'y' | 'z'): number | null => {
+          const m = raw.match(new RegExp(`${k}\\s*[:=]\\s*(-?\\d+(?:\\.\\d+)?)`, 'i'));
+          if (!m) return null;
+          const n = Number(m[1]);
+          return Number.isFinite(n) ? n : null;
+        };
+
+        const x = getNum('x');
+        const y = getNum('y');
+        const z = getNum('z');
+
+        if (target.configAttribute === 'north') {
+          if (x !== null && z !== null) parsed = { x, z };
+        } else {
+          if (x !== null && y !== null && z !== null) parsed = { x, y, z };
+        }
+      }
+
+      if (parsed && typeof parsed === 'object') {
+        // Force numeric fields
+        if (parsed.x !== undefined) parsed.x = Number(parsed.x);
+        if (parsed.y !== undefined) parsed.y = Number(parsed.y);
+        if (parsed.z !== undefined) parsed.z = Number(parsed.z);
+
+        target.value = parsed;
+      }
+    }
+
     if (target.configObject[target.configAttribute] == target.value) {
       return;
     }
@@ -3191,8 +3353,8 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
         pointer-events: none;
       }
       .values {
-        padding-left: 16px;
-        background: var(--secondary-background-color);
+        padding-left: 0px;
+
         display: grid;
       }
       .cards .card-options {
@@ -3210,6 +3372,55 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
       }
       floor3dpro-formfield {
         padding-bottom: 8px;
+      }
+
+      .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .add-button {
+        width: auto;
+      }
+
+      .pro-feature-skill-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 40px;
+      }
+
+      .pro-feature-skill-label {
+        font-size: 14px;
+        opacity: 0.85;
+      }
+
+      .pro-feature-skill-toggles {
+        display: inline-flex;
+        gap: 14px;
+        align-items: center;
+        flex-wrap: nowrap;
+      }
+
+      .optionPro {
+        padding: 4px 0px;
+      } 
+ 
+      .optionPro .row {
+        pointer-events: auto;
+        display: flex;
+        margin-bottom: -14px;
+      }      
+
+      .pro-feature-skill-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        opacity: 0.9;
       }
     `;
   }
