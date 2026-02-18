@@ -30,6 +30,7 @@ export interface Floor3dCardConfig {
   header: string;
   backgroundColor: string;
   globalLightPower: string;
+  nightLightPower?: string;
   hideLevelsMenu: string;
   initialLevel: number;
   selectionMode: string;
