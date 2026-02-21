@@ -381,8 +381,10 @@ resources:
 
 ### Notes
 
-* No custom repository setup is required anymore, since Floor3D Pro is now included in the official **HACS Default Repository Store**.  
+* No custom repository setup is required, Floor3D Pro is in the official **HACS Default Repository Store**.  
 * Manual installation is only recommended for advanced or offline setups.  
+
+--- 
 
 ---
 
