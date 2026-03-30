@@ -18,7 +18,6 @@ import {
 import { loadHaComponents } from './ensureComponents';
 import { Floor3dCardConfig } from './types';
 import '../elements/formfield';
-import '../elements/select';
 import '../elements/textfield';
 import '../elements/button';
 
@@ -975,35 +974,19 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
               .index=${index}
             ></ha-icon>
           </div>
-          <div class="values" style="flex-grow: 1;">
-            ${this._entity_ids.length * this._configArray.length < 5000
-              ? html` <floor3dpro-select
-                  label="Entity (Required)"
-                  .value=${config.entity}
-                  @selected=${this._valueChanged}
-                  .configAttribute=${'entity'}
-                  .configObject=${this._configArray[index]}
-                  .ignoreNull=${false}
-                  @closed=${(ev) => ev.stopPropagation()}
-                  fixedMenuPosition
-                  naturalMenuWidth
-                  required
-                  id="entity"
-                >
-                  ${this._entity_ids.map((entity) => {
-                    return html` <mwc-list-item .value=${entity}>${entity}</mwc-list-item> `;
-                  })}
-                </floor3dpro-select>`
-              : html`
-                  <floor3dpro-textfield
-                    label="Entity"
-                    @input=${this._valueChanged}
-                    .configAttribute=${'entity'}
-                    .configObject=${this._configArray[index]}
-                    .value=${config.entity ? config.entity : ''}
-                  >
-                  </floor3dpro-textfield>
-                `}
+          <div class="values" style="flex-grow: 1; margin-bottom: 12px;">
+            <ha-selector
+              .hass=${this.hass}
+              .selector=${{ entity: {} }}
+              .value=${config.entity ?? ''}
+              label="Entity (Required)"
+              @value-changed=${(ev: any) => {
+                const value = ev?.detail?.value ?? '';
+                this._configArray[index].entity = value;
+                this._config.entities = this._configArray;
+                this._commitConfig('entityChanged');
+              }}
+            ></ha-selector>
           </div>
           ${index !== 0
             ? html`
@@ -1365,7 +1348,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .configAttribute=${'style'}
                   @input=${this._valueChanged}
                 ></floor3dpro-textfield>
-                <floor3dpro-select
+                <ha-select
                   label="Lock Camera (yes/<no>)"
                   @selected=${this._valueChanged}
                   .value=${config.lock_camera ? config.lock_camera : 'no'}
@@ -1374,11 +1357,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .ignoreNull=${false}
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                    <mwc-list-item></mwc-list-item>
-                    <mwc-list-item value="yes">yes</mwc-list-item>
-                    <mwc-list-item value="no">no</mwc-list-item>
-                </floor3dpro-select>
-                <floor3dpro-select
+                    <ha-list-item></ha-list-item>
+                    <ha-list-item value="yes">yes</ha-list-item>
+                    <ha-list-item value="no">no</ha-list-item>
+                </ha-select>
+                <ha-select
                   label="Selection Mode (yes/<no>)"
                   @selected=${this._valueChanged}
                   .value=${config.selectionMode ? config.selectionMode : 'no'}
@@ -1387,11 +1370,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .ignoreNull=${false}
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                    <mwc-list-item></mwc-list-item>
-                    <mwc-list-item value="yes">yes</mwc-list-item>
-                    <mwc-list-item value="no">no</mwc-list-item>
-                </floor3dpro-select>
-                <floor3dpro-select
+                    <ha-list-item></ha-list-item>
+                    <ha-list-item value="yes">yes</ha-list-item>
+                    <ha-list-item value="no">no</ha-list-item>
+                </ha-select>
+                <ha-select
                   label="Edit Mode PopUp (<yes>/no)"
                   @selected=${this._valueChanged}
                   .value=${config.editModeNotifications ? config.editModeNotifications : 'yes'}
@@ -1400,11 +1383,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .ignoreNull=${false}
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                    <mwc-list-item></mwc-list-item>
-                    <mwc-list-item value="yes">yes</mwc-list-item>
-                    <mwc-list-item value="no">no</mwc-list-item>
-                </floor3dpro-select>
-                <floor3dpro-select
+                    <ha-list-item></ha-list-item>
+                    <ha-list-item value="yes">yes</ha-list-item>
+                    <ha-list-item value="no">no</ha-list-item>
+                </ha-select>
+                <ha-select
                   label="Header (<yes>/no)"
                   @selected=${this._valueChanged}
                   .value=${config.header ? config.header : 'yes'}
@@ -1413,11 +1396,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .ignoreNull=${false}
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                    <mwc-list-item></mwc-list-item>
-                    <mwc-list-item value="yes">yes</mwc-list-item>
-                    <mwc-list-item value="no">no</mwc-list-item>
-                </floor3dpro-select>
-                <floor3dpro-select
+                    <ha-list-item></ha-list-item>
+                    <ha-list-item value="yes">yes</ha-list-item>
+                    <ha-list-item value="no">no</ha-list-item>
+                </ha-select>
+                <ha-select
                   label="Click (no dblclick, yes/<no>)"
                   @selected=${this._valueChanged}
                   .value=${config.click ? config.click : 'no'}
@@ -1426,11 +1409,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .ignoreNull=${false}
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                    <mwc-list-item></mwc-list-item>
-                    <mwc-list-item value="yes">yes</mwc-list-item>
-                    <mwc-list-item value="no">no</mwc-list-item>
-                </floor3dpro-select>
-                <floor3dpro-select
+                    <ha-list-item></ha-list-item>
+                    <ha-list-item value="yes">yes</ha-list-item>
+                    <ha-list-item value="no">no</ha-list-item>
+                </ha-select>
+                <ha-select
                   label="Overlay (yes/<no>)"
                   @selected=${this._valueChanged}
                   .value=${config.overlay ? config.overlay : 'no'}
@@ -1439,10 +1422,10 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .ignoreNull=${false}
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                    <mwc-list-item></mwc-list-item>
-                    <mwc-list-item value="yes">yes</mwc-list-item>
-                    <mwc-list-item value="no">no</mwc-list-item>
-                </floor3dpro-select>
+                    <ha-list-item></ha-list-item>
+                    <ha-list-item value="yes">yes</ha-list-item>
+                    <ha-list-item value="no">no</ha-list-item>
+                </ha-select>
                 <floor3dpro-textfield
                   label="Background Color"
                   fullwidth
@@ -1451,7 +1434,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .configAttribute=${'backgroundColor'}
                   @input=${this._valueChanged}
                 ></floor3dpro-textfield>
-                <floor3dpro-select
+                <ha-select
                   label="Hide Levels Menu (yes/<no>)"
                   @selected=${this._valueChanged}
                   .value=${config.hideLevelsMenu ? config.hideLevelsMenu : 'no'}
@@ -1460,10 +1443,10 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .ignoreNull=${false}
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                    <mwc-list-item></mwc-list-item>
-                    <mwc-list-item value="yes">yes</mwc-list-item>
-                    <mwc-list-item value="no">no</mwc-list-item>
-                </floor3dpro-select>
+                    <ha-list-item></ha-list-item>
+                    <ha-list-item value="yes">yes</ha-list-item>
+                    <ha-list-item value="no">no</ha-list-item>
+                </ha-select>
                 ></floor3dpro-textfield>
                 <floor3dpro-formfield alignEnd label="Global Scene Light (0..1)" >
                   <floor3dpro-textfield
@@ -1478,7 +1461,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                     @input=${this._valueChanged}
                   ></floor3dpro-textfield>
                 </floor3dpro-formfield>
-                <floor3dpro-select
+                <ha-select
                   label="Shadow (yes/<no>)"
                   @selected=${this._valueChanged}
                   .value=${config.shadow ? config.shadow : 'no'}
@@ -1487,11 +1470,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .ignoreNull=${false}
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                    <mwc-list-item></mwc-list-item>
-                    <mwc-list-item value="yes">yes</mwc-list-item>
-                    <mwc-list-item value="no">no</mwc-list-item>
-                </floor3dpro-select>
-                <floor3dpro-select
+                    <ha-list-item></ha-list-item>
+                    <ha-list-item value="yes">yes</ha-list-item>
+                    <ha-list-item value="no">no</ha-list-item>
+                </ha-select>
+                <ha-select
                   label="+ Lights - Perf (yes/<no>)"
                   @selected=${this._valueChanged}
                   .value=${config.extralightmode ? config.extralightmode : 'no'}
@@ -1500,11 +1483,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .ignoreNull=${false}
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                    <mwc-list-item></mwc-list-item>
-                    <mwc-list-item value="yes">yes</mwc-list-item>
-                    <mwc-list-item value="no">no</mwc-list-item>
-                </floor3dpro-select>
-                <floor3dpro-select
+                    <ha-list-item></ha-list-item>
+                    <ha-list-item value="yes">yes</ha-list-item>
+                    <ha-list-item value="no">no</ha-list-item>
+                </ha-select>
+                <ha-select
                   label="Show Axes (yes/<no>)"
                   @selected=${this._valueChanged}
                   .value=${config.show_axes ? config.show_axes : 'no'}
@@ -1513,11 +1496,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .ignoreNull=${false}
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                    <mwc-list-item></mwc-list-item>
-                    <mwc-list-item value="yes">yes</mwc-list-item>
-                    <mwc-list-item value="no">no</mwc-list-item>
-                </floor3dpro-select>
-                <floor3dpro-select
+                    <ha-list-item></ha-list-item>
+                    <ha-list-item value="yes">yes</ha-list-item>
+                    <ha-list-item value="no">no</ha-list-item>
+                </ha-select>
+                <ha-select
                   label="Sky (yes/<no>)"
                   @selected=${this._valueChanged}
                   .value=${config.sky ? config.sky : 'no'}
@@ -1526,10 +1509,10 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .ignoreNull=${false}
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                    <mwc-list-item></mwc-list-item>
-                    <mwc-list-item value="yes">yes</mwc-list-item>
-                    <mwc-list-item value="no">no</mwc-list-item>
-                </floor3dpro-select>
+                    <ha-list-item></ha-list-item>
+                    <ha-list-item value="yes">yes</ha-list-item>
+                    <ha-list-item value="no">no</ha-list-item>
+                </ha-select>
                 <floor3dpro-textfield
                   label="North Direction (JSON) e.g. {\"x\":0,\"z\":-1}"
                   @input=${this._valueChanged}
@@ -1732,7 +1715,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     const options = this._options.entities.options.entities[index].options.threed;
     const config = this._configArray[index];
     return html`
-      <div class="category" id="type">
+      <div class="category" id="type" style="margin-bottom: 12px;">
         <div
           class="sub-category"
           @click=${this._toggleThing}
@@ -1757,7 +1740,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .configObject=${config}
                   @input=${this._valueChanged}
                 ></floor3dpro-textfield>
-                <floor3dpro-select
+                <ha-select
                   label="Action"
                   @selected=${this._valueChanged}
                   .value=${config.action ? config.action : null}
@@ -1767,12 +1750,12 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   .ignoreNull=${false}
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                  <mwc-list-item></mwc-list-item>
-                  <mwc-list-item value="more-info">more-info</mwc-list-item>
-                  <mwc-list-item value="overlay">overlay</mwc-list-item>
-                  <mwc-list-item value="default">default</mwc-list-item>
-                </floor3dpro-select>
-                <floor3dpro-select
+                  <ha-list-item></ha-list-item>
+                  <ha-list-item value="more-info">more-info</ha-list-item>
+                  <ha-list-item value="overlay">overlay</ha-list-item>
+                  <ha-list-item value="default">default</ha-list-item>
+                </ha-select>
+                <ha-select
                   label="3D Type"
                   @selected=${this._typeChanged}
                   .value=${config.type3d ? config.type3d : null}
@@ -1785,19 +1768,19 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                   naturalMenuWidth
                   @closed=${(ev) => ev.stopPropagation()}
                 >
-                  <mwc-list-item></mwc-list-item>
-                  <mwc-list-item value="light">light</mwc-list-item>
-                  <mwc-list-item value="color">color</mwc-list-item>
-                  <mwc-list-item value="room">room</mwc-list-item>
-                  <mwc-list-item value="hide">hide</mwc-list-item>
-                  <mwc-list-item value="show">show</mwc-list-item>
-                  <mwc-list-item value="text">text</mwc-list-item>
-                  <mwc-list-item value="door">door</mwc-list-item>
-                  <mwc-list-item value="cover">cover</mwc-list-item>
-                  <mwc-list-item value="rotate">rotate</mwc-list-item>
-                  <mwc-list-item value="gesture">gesture</mwc-list-item>
-                  <mwc-list-item value="camera">camera</mwc-list-item>
-                </floor3dpro-select>
+                  <ha-list-item></ha-list-item>
+                  <ha-list-item value="light">light</ha-list-item>
+                  <ha-list-item value="color">color</ha-list-item>
+                  <ha-list-item value="room">room</ha-list-item>
+                  <ha-list-item value="hide">hide</ha-list-item>
+                  <ha-list-item value="show">show</ha-list-item>
+                  <ha-list-item value="text">text</ha-list-item>
+                  <ha-list-item value="door">door</ha-list-item>
+                  <ha-list-item value="cover">cover</ha-list-item>
+                  <ha-list-item value="rotate">rotate</ha-list-item>
+                  <ha-list-item value="gesture">gesture</ha-list-item>
+                  <ha-list-item value="camera">camera</ha-list-item>
+                </ha-select>
                 ${!this._objects
                   ? html`
                       <floor3dpro-textfield
@@ -1810,7 +1793,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                       ></floor3dpro-textfield>
                     `
                   : html`
-                      <floor3dpro-select
+                      <ha-select
                         label="Object id"
                         @selected=${this._valueChanged}
                         .value=${config.object_id}
@@ -1821,16 +1804,16 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                         @closed=${(ev) => ev.stopPropagation()}
                       >
                         ${this._objects.map((object_id) => {
-                          return html` <mwc-list-item value="${object_id}">${object_id}</mwc-list-item> `;
+                          return html` <ha-list-item value="${object_id}">${object_id}</ha-list-item> `;
                         })}
                         ${this._configObjectArray.map((object_group) => {
                           return html`
-                            <mwc-list-item value="${'<' + object_group.object_group + '>'}"
-                              >${'<' + object_group.object_group + '>'}</mwc-list-item
+                            <ha-list-item value="${'<' + object_group.object_group + '>'}"
+                              >${'<' + object_group.object_group + '>'}</ha-list-item
                             >
                           `;
                         })}
-                      </floor3dpro-select>
+                      </ha-select>
                     `}
               </div>
             `
@@ -2321,7 +2304,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                                 @input=${this._valueChanged}
                               ></floor3dpro-textfield>
                             </floor3dpro-formfield>
-                            <floor3dpro-select
+                            <ha-select
                               label="Shadow (yes/<no>)"
                               @selected=${this._valueChanged}
                               .value=${config.light.shadow ? config.light.shadow : null}
@@ -2330,10 +2313,10 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               .ignoreNull=${false}
                               @closed=${(ev) => ev.stopPropagation()}
                             >
-                              <mwc-list-item></mwc-list-item>
-                              <mwc-list-item value="yes">yes</mwc-list-item>
-                              <mwc-list-item value="no">no</mwc-list-item>
-                            </floor3dpro-select>
+                              <ha-list-item></ha-list-item>
+                              <ha-list-item value="yes">yes</ha-list-item>
+                              <ha-list-item value="no">no</ha-list-item>
+                            </ha-select>
                             <floor3dpro-textfield
                               label="Light Direction (spot) (JSON) e.g. {\"x\":0,\"y\":1,\"z\":0}"
                               .value=${config.light.light_direction ? JSON.stringify(config.light.light_direction) : ''}
@@ -2361,7 +2344,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                                 @input=${this._valueChanged}
                               ></floor3dpro-textfield>
                             </floor3dpro-formfield>
-                            <floor3dpro-select
+                            <ha-select
                               label="Light Vertical Alignment"
                               @selected=${this._valueChanged}
                               .value=${config.light.vertical_alignment ? config.light.vertical_alignment : null}
@@ -2370,11 +2353,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               .ignoreNull=${false}
                               @closed=${(ev) => ev.stopPropagation()}
                             >
-                              <mwc-list-item></mwc-list-item>
-                              <mwc-list-item value="bottom">bottom</mwc-list-item>
-                              <mwc-list-item value="middle">middle</mwc-list-item>
-                              <mwc-list-item value="top">top</mwc-list-item>
-                            </floor3dpro-select>
+                              <ha-list-item></ha-list-item>
+                              <ha-list-item value="bottom">bottom</ha-list-item>
+                              <ha-list-item value="middle">middle</ha-list-item>
+                              <ha-list-item value="top">top</ha-list-item>
+                            </ha-select>
                           `
                         : ''}
                     </div>
@@ -2455,7 +2438,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               .configAttribute=${'label'}
                               @input=${this._valueChanged}
                             ></floor3dpro-textfield>
-                            <floor3dpro-select
+                            <ha-select
                               label="Label text (state or template)"
                               @selected=${this._valueChanged}
                               .value=${config.room.label_text ? config.room.label_text : null}
@@ -2464,10 +2447,10 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               .ignoreNull=${false}
                               @closed=${(ev) => ev.stopPropagation()}
                             >
-                              <mwc-list-item></mwc-list-item>
-                              <mwc-list-item value="state">state</mwc-list-item>
-                              <mwc-list-item value="template">template</mwc-list-item>
-                            </floor3dpro-select>
+                              <ha-list-item></ha-list-item>
+                              <ha-list-item value="state">state</ha-list-item>
+                              <ha-list-item value="template">template</ha-list-item>
+                            </ha-select>
                             <floor3dpro-formfield alignEnd label="Label Width (scaled cm)">
                               <floor3dpro-textfield
                                 type="number"
@@ -2536,7 +2519,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                             ></floor3dpro-textfield>
                           `
                         : html`
-                            <floor3dpro-select
+                            <ha-select
                               label="Object id"
                               @selected=${this._valueChanged}
                               .value=${config.object_id}
@@ -2547,16 +2530,16 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               @closed=${(ev) => ev.stopPropagation()}
                             >
                               ${this._objects.map((object_id) => {
-                                return html` <mwc-list-item value="${object_id}">${object_id}</mwc-list-item> `;
+                                return html` <ha-list-item value="${object_id}">${object_id}</ha-list-item> `;
                               })}
                               ${this._configObjectArray.map((object_group) => {
                                 return html`
-                                  <mwc-list-item value="${'<' + object_group.object_group + '>'}"
-                                    >${'<' + object_group.object_group + '>'}</mwc-list-item
+                                  <ha-list-item value="${'<' + object_group.object_group + '>'}"
+                                    >${'<' + object_group.object_group + '>'}</ha-list-item
                                   >
                                 `;
                               })}
-                            </floor3dpro-select>
+                            </ha-select>
                           `}
                       <floor3dpro-textfield
                         label="Zoom Direction (JSON) e.g. {\"x\":0,\"y\":0,\"z\":-1}"
@@ -2714,7 +2697,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                     <div class="card-options" style="display: flex; flex-direction: column; align-items: left;">
                       ${index !== null
                         ? html`
-                            <floor3dpro-select
+                            <ha-select
                               label="Door Type"
                               @selected=${this._valueChanged}
                               .value=${config.door.doortype ? config.door.doortype : null}
@@ -2723,11 +2706,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               .ignoreNull=${false}
                               @closed=${(ev) => ev.stopPropagation()}
                             >
-                              <mwc-list-item></mwc-list-item>
-                              <mwc-list-item value="swing">swing</mwc-list-item>
-                              <mwc-list-item value="slide">slide</mwc-list-item>
-                            </floor3dpro-select>
-                            <floor3dpro-select
+                              <ha-list-item></ha-list-item>
+                              <ha-list-item value="swing">swing</ha-list-item>
+                              <ha-list-item value="slide">slide</ha-list-item>
+                            </ha-select>
+                            <ha-select
                               label="Side"
                               @selected=${this._valueChanged}
                               .value=${config.door.side ? config.door.side : null}
@@ -2736,13 +2719,13 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               .ignoreNull=${false}
                               @closed=${(ev) => ev.stopPropagation()}
                             >
-                              <mwc-list-item></mwc-list-item>
-                              <mwc-list-item value="up">up</mwc-list-item>
-                              <mwc-list-item value="down">down</mwc-list-item>
-                              <mwc-list-item value="left">left</mwc-list-item>
-                              <mwc-list-item value="right">right</mwc-list-item>
-                            </floor3dpro-select>
-                            <floor3dpro-select
+                              <ha-list-item></ha-list-item>
+                              <ha-list-item value="up">up</ha-list-item>
+                              <ha-list-item value="down">down</ha-list-item>
+                              <ha-list-item value="left">left</ha-list-item>
+                              <ha-list-item value="right">right</ha-list-item>
+                            </ha-select>
+                            <ha-select
                               label="Direction"
                               @selected=${this._valueChanged}
                               .value=${config.door.direction ? config.door.direction : null}
@@ -2751,10 +2734,10 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               .ignoreNull=${false}
                               @closed=${(ev) => ev.stopPropagation()}
                             >
-                              <mwc-list-item></mwc-list-item>
-                              <mwc-list-item value="inner">inner</mwc-list-item>
-                              <mwc-list-item value="outer">outer</mwc-list-item>
-                            </floor3dpro-select>
+                              <ha-list-item></ha-list-item>
+                              <ha-list-item value="inner">inner</ha-list-item>
+                              <ha-list-item value="outer">outer</ha-list-item>
+                            </ha-select>
                             <floor3dpro-formfield alignEnd label="Degrees (for Swing)">
                               <floor3dpro-textfield
                                 type="number"
@@ -2844,7 +2827,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               .configAttribute=${'pane'}
                               @input=${this._valueChanged}
                             ></floor3dpro-textfield>
-                            <floor3dpro-select
+                            <ha-select
                               label="Side"
                               @selected=${this._valueChanged}
                               .value=${config.cover.side ? config.cover.side : null}
@@ -2853,10 +2836,10 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               .ignoreNull=${false}
                               @closed=${(ev) => ev.stopPropagation()}
                             >
-                              <mwc-list-item></mwc-list-item>
-                              <mwc-list-item value="up">up</mwc-list-item>
-                              <mwc-list-item value="down">down</mwc-list-item>
-                            </floor3dpro-select>
+                              <ha-list-item></ha-list-item>
+                              <ha-list-item value="up">up</ha-list-item>
+                              <ha-list-item value="down">down</ha-list-item>
+                            </ha-select>
                           `
                         : ''}
                     </div>
@@ -2959,7 +2942,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                     <div class="card-options" style="display: flex; flex-direction: column; align-items: left;">
                       ${index !== null
                         ? html`
-                            <floor3dpro-select
+                            <ha-select
                               label="Axis"
                               @selected=${this._valueChanged}
                               .value=${config.rotate.axis ? config.rotate.axis : null}
@@ -2968,11 +2951,11 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
                               .ignoreNull=${false}
                               @closed=${(ev) => ev.stopPropagation()}
                             >
-                              <mwc-list-item></mwc-list-item>
-                              <mwc-list-item value="x">x</mwc-list-item>
-                              <mwc-list-item value="y">y</mwc-list-item>
-                              <mwc-list-item value="z">z</mwc-list-item>
-                            </floor3dpro-select>
+                              <ha-list-item></ha-list-item>
+                              <ha-list-item value="x">x</ha-list-item>
+                              <ha-list-item value="y">y</ha-list-item>
+                              <ha-list-item value="z">z</ha-list-item>
+                            </ha-select>
                             <floor3dpro-textfield
                               label="Hinge-pivot object "
                               .value=${config.rotate.hinge ? config.rotate.hinge : ''}
@@ -3121,7 +3104,32 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
     this._toggleThing(ev);
   }
 
+  private _readEventValue(ev: any): any {
+    if (ev?.detail && Object.prototype.hasOwnProperty.call(ev.detail, 'value')) {
+      return ev.detail.value;
+    }
+    if (ev?.target && Object.prototype.hasOwnProperty.call(ev.target, 'value')) {
+      return ev.target.value;
+    }
+    return undefined;
+  }
+
+  private _normalizeValueChangeEvent(ev: any): any {
+    const target = ev?.target;
+    if (!target) {
+      return ev;
+    }
+
+    const nextValue = this._readEventValue(ev);
+    if (nextValue !== undefined) {
+      target.value = nextValue;
+    }
+
+    return ev;
+  }
+
   private _typeChanged(ev): void {
+    ev = this._normalizeValueChangeEvent(ev);
     if (!this._config || !this.hass) {
       return;
     }
@@ -3254,6 +3262,7 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
   }
 
   private _valueChanged(ev): void {
+    ev = this._normalizeValueChangeEvent(ev);
     if (!this._config || !this.hass) {
       return;
     }
@@ -3365,7 +3374,8 @@ export class Floor3dCardEditor extends LitElement implements LovelaceCardEditor 
       ha-formfield {
         padding-bottom: 8px;
       }
-      floor3dpro-select,
+      ha-select,
+      ha-entity-picker,
       floor3dpro-textfield {
         margin-bottom: 16px;
         display: block;
