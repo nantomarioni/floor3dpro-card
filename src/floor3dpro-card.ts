@@ -366,6 +366,7 @@ export class Floor3dCard extends LitElement {
       extralightmode: 'no',
       show_axes: 'no',
       sky: 'no',
+      hideGround: 'no',
       overlay_bgcolor: 'transparent',
       overlay_fgcolor: 'black',
       overlay_alignment: 'top-left',
@@ -1523,16 +1524,17 @@ export class Floor3dCard extends LitElement {
 
     console.log('Init Ground');
 
-    const groundGeo = new THREE.PlaneGeometry(10000, 10000);
-    const groundMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
-    groundMat.color.setHSL(0.095, 1, 0.75);
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.position.y = -5;
-    ground.rotation.x = -Math.PI / 2;
-    ground.receiveShadow = false;
-    ground.castShadow = false;
-    //this._bboxmodel.add(ground);
-    this._scene.add(ground);
+    if (this._config.hideGround !== 'yes') {
+      const groundGeo = new THREE.PlaneGeometry(10000, 10000);
+      const groundMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
+      groundMat.color.setHSL(0.095, 1, 0.75);
+      const ground = new THREE.Mesh(groundGeo, groundMat);
+      ground.position.y = -5;
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = false;
+      ground.castShadow = false;
+      this._scene.add(ground);
+    }
 
     // inti sun
 
@@ -2860,6 +2862,12 @@ export class Floor3dCard extends LitElement {
                           y = box.min.y;
                           break;
                       }
+                    }
+
+                    if (entity.light.light_offset) {
+                      x += Number(entity.light.light_offset.x || 0);
+                      y += Number(entity.light.light_offset.y || 0);
+                      z += Number(entity.light.light_offset.z || 0);
                     }
 
                     let decay: number;
