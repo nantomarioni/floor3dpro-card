@@ -98,6 +98,7 @@ export interface Floor3dCardConfig {
   light_target: string;
   radius: number;
   sky: string;
+  hideGround: string;
   north: any;
   x: number;
   y: number;
