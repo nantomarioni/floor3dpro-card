@@ -113,6 +113,8 @@ export interface Floor3dCardConfig {
   color: string;
   show_warning: boolean;
   show_error: boolean;
+  pcss: string;
+  pcss_light_size: string;
 // Faz-0 PRO Backbone: pro-skill / pro-log
   pro_skill?: ProSkillConfig;
   pro_log?: ProLogConfig;

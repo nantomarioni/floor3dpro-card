@@ -160,6 +160,8 @@ export class Floor3dCard extends LitElement {
   private _rotation_state: number[];
   private _rotation_index: number[];
   private _animated_transitions: any[];
+  private _waterMeshes: THREE.Mesh[];
+  private _waterNormalMap: THREE.Texture | null;
   private _clock?: THREE.Clock;
   private _slidingdoor: THREE.Group[];
   private _overlay_entity: string;
@@ -1589,15 +1591,16 @@ export class Floor3dCard extends LitElement {
     this._sun.position.copy(sun.multiplyScalar(5000));
 
     // sun directional light parameters
-    const d = 1000;
+    const d = 5000;
 
     this._sun.shadow.camera;
     this._sun.castShadow = true;
 
-    this._sun.shadow.mapSize.width = 1024;
-    this._sun.shadow.mapSize.height = 1024;
-    this._sun.shadow.camera.near = 4000;
-    this._sun.shadow.camera.far = 6000;
+    this._sun.shadow.mapSize.width = 4096;
+    this._sun.shadow.mapSize.height = 4096;
+    this._sun.shadow.camera.near = 2000;
+    this._sun.shadow.camera.far = 8000;
+    this._sun.shadow.radius = 8;
 
     this._sun.shadow.camera.left = -d;
     this._sun.shadow.camera.right = d;
@@ -1633,6 +1636,111 @@ export class Floor3dCard extends LitElement {
         this._torch.intensity = Number(this._config.globalLightPower);
       }
     }
+  }
+
+  private _installPCSS(lightSize: number): void {
+    // PCSS: Percentage Closer Soft Shadows
+    // Only patches the PCF_SOFT branch of the existing shadow shader chunk.
+    // All struct definitions, point light handling, etc. remain untouched.
+
+    // Helper functions injected before getShadow
+    const pcssHelpers = `
+  float pcssRand(vec2 co) {
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+  }
+
+  vec2 pcssPoisson(int i) {
+    // 16-sample Poisson disc (hardcoded for GLSL ES 1.00 compatibility)
+    if (i == 0) return vec2(-0.9420, -0.3991);
+    if (i == 1) return vec2(0.9456, -0.7689);
+    if (i == 2) return vec2(-0.0942, -0.9294);
+    if (i == 3) return vec2(0.3450, 0.2939);
+    if (i == 4) return vec2(-0.9159, 0.4577);
+    if (i == 5) return vec2(-0.8154, -0.8791);
+    if (i == 6) return vec2(-0.3828, 0.2768);
+    if (i == 7) return vec2(0.9748, 0.7565);
+    if (i == 8) return vec2(0.4432, -0.9751);
+    if (i == 9) return vec2(0.5374, -0.4737);
+    if (i == 10) return vec2(-0.2650, -0.4189);
+    if (i == 11) return vec2(0.7920, 0.1909);
+    if (i == 12) return vec2(-0.2419, 0.9971);
+    if (i == 13) return vec2(-0.8141, 0.9144);
+    if (i == 14) return vec2(0.1998, 0.7864);
+    return vec2(0.1438, -0.1410);
+  }
+
+  float pcssBlockerSearch(sampler2D shadowMap, vec2 uv, float zReceiver, float searchRadius, vec2 texelSize, vec2 seed) {
+    float blockerSum = 0.0;
+    float numBlockers = 0.0;
+    float angle = pcssRand(seed) * 6.2831853;
+    float sa = sin(angle);
+    float ca = cos(angle);
+
+    for (int i = 0; i < 16; i++) {
+      vec2 p = pcssPoisson(i);
+      vec2 rotated = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
+      vec2 offset = rotated * searchRadius * texelSize;
+      float smd = unpackRGBAToDepth(texture2D(shadowMap, uv + offset));
+      if (smd < zReceiver) {
+        blockerSum += smd;
+        numBlockers += 1.0;
+      }
+    }
+    if (numBlockers < 0.5) return -1.0;
+    return blockerSum / numBlockers;
+  }
+
+  float pcssPCF(sampler2D shadowMap, vec2 uv, float zReceiver, float filterRadius, vec2 texelSize, vec2 seed) {
+    float shadow = 0.0;
+    float angle = pcssRand(seed + vec2(1.0, 1.0)) * 6.2831853;
+    float sa = sin(angle);
+    float ca = cos(angle);
+
+    for (int i = 0; i < 16; i++) {
+      vec2 p = pcssPoisson(i);
+      vec2 rotated = vec2(p.x * ca - p.y * sa, p.x * sa + p.y * ca);
+      vec2 offset = rotated * filterRadius * texelSize;
+      shadow += step(zReceiver, unpackRGBAToDepth(texture2D(shadowMap, uv + offset)));
+    }
+    return shadow / 16.0;
+  }
+`;
+
+    // PCSS replacement for the PCF_SOFT branch
+    const pcssBranch = `#elif defined( SHADOWMAP_TYPE_PCF_SOFT )
+                        vec2 texelSize = vec2( 1.0 ) / shadowMapSize;
+                        float lightSize = ${lightSize.toFixed(1)};
+                        float searchRadius = lightSize * shadowRadius;
+                        vec2 seed = gl_FragCoord.xy + shadowCoord.xy;
+
+                        float avgBlockerDepth = pcssBlockerSearch(shadowMap, shadowCoord.xy, shadowCoord.z, searchRadius, texelSize, seed);
+
+                        if (avgBlockerDepth < 0.0) {
+                          shadow = 1.0;
+                        } else {
+                          float penumbraWidth = (shadowCoord.z - avgBlockerDepth) / avgBlockerDepth * lightSize;
+                          float filterRadius = max(penumbraWidth * shadowRadius, 1.0);
+                          shadow = pcssPCF(shadowMap, shadowCoord.xy, shadowCoord.z, filterRadius, texelSize, seed);
+                        }
+`;
+
+    let chunk = THREE.ShaderChunk.shadowmap_pars_fragment;
+
+    // Inject PCSS helpers before getShadow function
+    chunk = chunk.replace(
+      'float getShadow(',
+      pcssHelpers + '\n  float getShadow('
+    );
+
+    // Replace the PCF_SOFT section
+    const pcfSoftStart = chunk.indexOf('#elif defined( SHADOWMAP_TYPE_PCF_SOFT )');
+    const pcfSoftEnd = chunk.indexOf('#elif defined( SHADOWMAP_TYPE_VSM )');
+
+    if (pcfSoftStart !== -1 && pcfSoftEnd !== -1) {
+      chunk = chunk.substring(0, pcfSoftStart) + pcssBranch + chunk.substring(pcfSoftEnd);
+    }
+
+    THREE.ShaderChunk.shadowmap_pars_fragment = chunk;
   }
 
   private _initAmbient(): void {
@@ -1874,6 +1982,8 @@ export class Floor3dCard extends LitElement {
 
     console.log('Object loaded start');
 
+    this._waterMeshes = [];
+    this._waterNormalMap = null;
     this._initobjects(object);
 
     this._bboxmodel = new THREE.Object3D();
@@ -1896,6 +2006,13 @@ export class Floor3dCard extends LitElement {
 
     if (this._config.shadow && this._config.shadow == 'yes') {
       console.log('Shadow On');
+
+      // PCSS: Patch the PCF_SOFT section of the shadow shader for contact-hardening shadows
+      if (this._config.pcss && this._config.pcss !== 'no') {
+        const lightSize = Number(this._config.pcss_light_size) || 15;
+        this._installPCSS(lightSize);
+      }
+
       this._renderer.shadowMap.enabled = true;
       // Faz-1 PRO Skill: MOBILE optimization
       this._renderer.shadowMap.type = this._proSkillEnabled('mobile')
@@ -2074,6 +2191,43 @@ export class Floor3dCard extends LitElement {
           }
           return;
         }
+      }
+
+      // Water material: detect meshes named with "water" and replace with refractive MeshPhysicalMaterial
+      if (element instanceof THREE.Mesh && /water/i.test(element.name)) {
+        const waterMat: any = new THREE.MeshPhysicalMaterial({
+          color: 0x00aaff,
+          roughness: 0.05,
+          transparent: true,
+          opacity: 1.0,
+          side: THREE.DoubleSide,
+          depthWrite: false,
+        });
+        // Set properties that may not be in type defs for older Three.js
+        waterMat.transmission = 1.0;
+        waterMat.ior = 1.33;
+        waterMat.thickness = 50;
+        waterMat.attenuationColor = new THREE.Color(0x003366);
+        waterMat.attenuationDistance = 200;
+
+        // Load water normal map for surface ripples
+        const texLoader = new THREE.TextureLoader();
+        const normalMapUrl = this._config.path + 'water_normal.png';
+        texLoader.load(normalMapUrl, (texture) => {
+          texture.wrapS = THREE.RepeatWrapping;
+          texture.wrapT = THREE.RepeatWrapping;
+          texture.repeat.set(4, 4);
+          waterMat.normalMap = texture;
+          waterMat.normalScale = new THREE.Vector2(0.3, 0.3);
+          waterMat.needsUpdate = true;
+          this._requestRender('water_normal_loaded');
+        });
+
+        (element as THREE.Mesh).material = waterMat;
+        element.castShadow = false;
+        element.receiveShadow = true;
+        this._waterMeshes.push(element as THREE.Mesh);
+        console.log('[floor3dpro] Water mesh detected:', element.name);
       }
 
       this._raycastinglevels[level].push(element);
@@ -2588,6 +2742,8 @@ export class Floor3dCard extends LitElement {
         this._rotation_state = [];
         this._rotation_index = [];
         this._animated_transitions = [];
+        this._waterMeshes = [];
+        this._waterNormalMap = null;
         this._pivot = [];
         this._axis_for_door = [];
         this._degrees = [];
@@ -2950,6 +3106,9 @@ export class Floor3dCard extends LitElement {
                     } else {
                       light.castShadow = true;
                       light.shadow.bias = -0.0001;
+                      light.shadow.mapSize.width = 1024;
+                      light.shadow.mapSize.height = 1024;
+                      light.shadow.radius = 6;
                     }
                     light.name = element.object_id + '_light';
                   }
@@ -3383,6 +3542,8 @@ export class Floor3dCard extends LitElement {
         max = 800;
       }
 
+      let lightColor: THREE.Color;
+
       if (this._states[i] == 'on') {
         if (this._brightness[i] != -1) {
           light.intensity = 0.003 * max * (this._brightness[i] / 255);
@@ -3391,13 +3552,14 @@ export class Floor3dCard extends LitElement {
         }
         if (!this._color[i]) {
           if (entity.light.color) {
-            light.color = new THREE.Color(entity.light.color);
+            lightColor = new THREE.Color(entity.light.color);
           } else {
-            light.color = new THREE.Color('#ffffff');
+            lightColor = new THREE.Color('#ffffff');
           }
         } else {
-          light.color = new THREE.Color(this._RGBToHex(this._color[i][0], this._color[i][1], this._color[i][2]));
+          lightColor = new THREE.Color(this._RGBToHex(this._color[i][0], this._color[i][1], this._color[i][2]));
         }
+        light.color = lightColor;
       } else {
         light.intensity = 0;
         //light.color = new THREE.Color('#000000');
@@ -3409,6 +3571,79 @@ export class Floor3dCard extends LitElement {
       }
       this._renderer.shadowMap.needsUpdate = true;
     });
+
+    // Emissive glow on specified sub-objects
+    if (entity.light.glow_objects) {
+      const glowIds: string[] = Array.isArray(entity.light.glow_objects)
+        ? entity.light.glow_objects
+        : [entity.light.glow_objects];
+      const glowIntensity = entity.light.glow_intensity != null ? Number(entity.light.glow_intensity) : 0.8;
+
+      glowIds.forEach((objId: string) => {
+        const glowObj: any = this._scene.getObjectByName(objId);
+        if (!glowObj) {
+          return;
+        }
+
+        // Handle meshes with children (traverse to find actual mesh nodes)
+        const meshes: any[] = [];
+        if (glowObj.isMesh) {
+          meshes.push(glowObj);
+        }
+        glowObj.traverse((child: any) => {
+          if (child.isMesh && child !== glowObj) {
+            meshes.push(child);
+          }
+        });
+
+        if (meshes.length === 0) {
+          return;
+        }
+
+        meshes.forEach((mesh: any) => {
+          if (!mesh.material) return;
+
+          // Ensure we have a cloned material (not shared) so glow doesn't affect other objects
+          if (!mesh.userData._glowMaterialCloned) {
+            if (Array.isArray(mesh.material)) {
+              mesh.material = mesh.material.map((m: any) => m.clone());
+            } else {
+              mesh.material = mesh.material.clone();
+            }
+            mesh.userData._glowMaterialCloned = true;
+          }
+
+          const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+
+          materials.forEach((mat: any) => {
+            if (this._states[i] == 'on') {
+              let color: THREE.Color;
+              if (!this._color[i]) {
+                color = new THREE.Color(entity.light.color || '#ffffee');
+              } else {
+                color = new THREE.Color(this._RGBToHex(this._color[i][0], this._color[i][1], this._color[i][2]));
+              }
+              const intensity = this._brightness[i] != -1 ? glowIntensity * (this._brightness[i] / 255) : glowIntensity;
+
+              if (mat.emissive !== undefined) {
+                mat.emissive.set(color);
+                mat.emissiveIntensity = intensity;
+              } else {
+                // Fallback: tint the diffuse color
+                mat.color.set(color);
+              }
+              mat.needsUpdate = true;
+            } else {
+              if (mat.emissive !== undefined) {
+                mat.emissive.set(0x000000);
+                mat.emissiveIntensity = 0;
+              }
+              mat.needsUpdate = true;
+            }
+          });
+        });
+      });
+    }
   }
 
   private _manage_light_shadows(entity: Floor3dCardConfig, light: THREE.Light): void {
@@ -3735,8 +3970,8 @@ export class Floor3dCard extends LitElement {
   }
 
   private _needsAnimationLoop() {
-    // Check rotations and Tween.getAll()
-    return this._rotation_state.some((item) => item !== 0) || TWEEN.getAll().length > 0;
+    // Check rotations, Tween.getAll(), and water ripple animation
+    return this._rotation_state.some((item) => item !== 0) || TWEEN.getAll().length > 0 || (this._waterMeshes && this._waterMeshes.length > 0);
   }
 
   // If every rotating entity and Tween is stopped, disable animation
@@ -3779,6 +4014,18 @@ export class Floor3dCard extends LitElement {
     });
 
     TWEEN.update();
+
+    // Animate water surface ripples
+    if (this._waterMeshes && this._waterMeshes.length > 0) {
+      const speed = clockDelta * 0.02;
+      this._waterMeshes.forEach((mesh) => {
+        const mat = mesh.material as THREE.MeshPhysicalMaterial;
+        if (mat.normalMap) {
+          mat.normalMap.offset.x += speed;
+          mat.normalMap.offset.y += speed * 0.7;
+        }
+      });
+    }
 
     this._renderer.shadowMap.needsUpdate = true;
     // Faz-0 Engine Backbone: (Stabil.Patch.0.0)
