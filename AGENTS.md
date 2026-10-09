@@ -1,9 +1,7 @@
 # Agent guide — floor3dpro-card
 
-Tool-agnostic guide for coding agents (Cursor, Claude Code, Copilot, Codex, …).
-This is the only `AGENTS.md` in the repo — it's small enough that repo-wide
-orientation lives here. Add a nested file only if a subfolder grows its own
-distinct conventions.
+Primary agent guide for this repo; the only `AGENTS.md` (no nested files).
+Architecture write-up on demand: `ENGINE.md`.
 
 ## What this is
 
@@ -35,38 +33,28 @@ config maps named mesh objects to entities.
   editor, DOM custom-element isolation (the `floor3dpro-*` tag prefix), and
   opt-in `pro_skill` (`level`/`editor`/`mobile`/`all`) + `pro_log`
   (`engine`/`all`) config (both opt-in, empty by default; see `src/helpers.ts`
-  `proGetSkillSet`/`proGetLogSet`). Architecture
-  notes live in `ENGINE.md`. The upstream remote is the repo's `repository`
-  field (`levonisyas/floor3dpro-card`); this workspace clone's `origin` is
-  `nantomarioni/floor3dpro-card`.
+  `proGetSkillSet`/`proGetLogSet`). `package.json`'s `repository` still names
+  `levonisyas/floor3dpro-card`; `origin` is `nantomarioni/floor3dpro-card`.
 
 > Version is tracked in two places that must agree: `package.json` `version`
-> and `CARD_VERSION` in `src/const.ts` (currently `1.5.3-Pro.Faz.2.1`).
+> and `CARD_VERSION` in `src/const.ts`.
 
 ## How to run things
 
-Package manager is **npm** (`package-lock.json` is the live lockfile;
-`yarn.lock.backup` is a stale artifact — ignore it). Node ≥ 16 era toolchain
-(Rollup 2 / TypeScript 4). Install with `npm ci` (or `npm install`).
+**npm** (`package-lock.json`; `yarn.lock.backup` is a stale artifact). Rollup 2 /
+TypeScript 4. `npm ci` to install.
 
 ```bash
-npm run start    # rollup -c rollup.config.dev.js --watch
-                 #   → rebuilds to dist/ and serves on http://0.0.0.0:5000 (CORS open)
-npm run build    # lint THEN rollup -c (the release build; minified via terser)
-npm run rollup   # rollup -c only (build the bundle without linting)
+npm run start    # dev watch build → dist/, served on http://0.0.0.0:5000 (CORS open)
+npm run build    # lint THEN rollup -c (release build, terser-minified)
+npm run rollup   # bundle only, no lint
 npm run lint     # eslint src/*.ts
 ```
 
-There is **no typecheck script, no formatter script, and no tests**. Notes:
-
-- `tsconfig.json` sets `"noEmit": true`; type-checking happens implicitly via
-  `rollup-plugin-typescript2` during the build, not as a standalone gate.
-- Prettier is configured (`.prettierrc.js`: semi, single quotes, trailing
-  commas, width 120, 2-space) and wired into ESLint, but there is no
-  `npm run format`. Run `npx prettier` manually if you need to format.
-- For local HA testing, point a Lovelace resource at the dev server URL
-  (`http://<host>:5000/floor3dpro-card.js`) or drop the built
-  `dist/floor3dpro-card.js` into `config/www/`.
+**No typecheck script, no formatter script, no tests.** Type-checking happens
+inside the build (`rollup-plugin-typescript2`; `tsconfig` is `noEmit`). Prettier
+is wired into ESLint but there is no `npm run format`. For live HA testing,
+point a Lovelace resource at `http://<host>:5000/floor3dpro-card.js`.
 
 ## Quality gate
 
@@ -185,29 +173,21 @@ breaking contract change — see Ripple awareness.
 
 ## Ripple awareness
 
-- **HACS = versioned public contract.** The custom element tag
-  (`custom:floor3dpro-card`), the config option names/shapes in `types.ts`, and
-  the bundle filename (`dist/floor3dpro-card.js`, per `hacs.json`) are all
-  consumed by end users' dashboards via HACS releases. Renaming the tag or a
-  config key, or changing a `type3d` semantic, breaks existing dashboards —
-  bump the version and call it out in `README.md` / release notes. Don't rename
-  the tag casually (it also exists to avoid colliding with upstream
-  `floor3d-card`).
-- **`ha-assets` consumes this card.** The sibling Home Assistant config repo
-  (`../ha-assets`) uses `type: custom:floor3dpro-card` in
+- **HACS = versioned public contract.** The tag (`custom:floor3dpro-card`), the
+  config option names/shapes in `types.ts` and the bundle filename
+  (`hacs.json`) are consumed by users' dashboards. Renaming a tag/key or
+  changing a `type3d` semantic breaks them — bump the version and call it out
+  in `README.md`. The tag also exists to avoid colliding with upstream.
+- **`ha-assets`** — github.com/nantomarioni/ha-assets — expected at
+  `../ha-assets`. Uses `type: custom:floor3dpro-card` in
   `dashboards/dashboard-dashboard/floor-plan-v2.json`, loading the bundle from
   `path: /local/community/floor3dpro-card/` with a `.glb` model + `objectlist`
   and the `pro_log` / `pro_skill` opt-ins. A tag rename, a config-option
-  rename/semantic change, or a changed resource path needs a matching update to
-  that dashboard (and to the Lovelace `resources:` registration that serves the
-  bundle).
-- **Fork hygiene.** This is a fork of upstream `adizanni/floor3d-card`. Keep
-  local "Pro" changes identifiable and rebase-friendly: they're marked with
-  `Faz-*` / `pro` comments and isolated behind the `floor3dpro-` tag prefix and
-  opt-in `pro_skill`/`pro_log` config (default off). Prefer additive, clearly
-  marked changes over scattered edits to upstream logic, so future merges from
-  upstream stay tractable. Per the README, this fork's scope is
-  scaling/stabilization, not feature expansion of the original.
+  rename/semantic change, or a changed resource path needs a matching update
+  there (and to the Lovelace resource registration).
+- **Fork hygiene.** Keep "Pro" changes identifiable (`Faz-*` / `pro` markers,
+  `floor3dpro-` prefix, opt-in `pro_skill`/`pro_log`) and additive so upstream
+  merges stay tractable; the fork's scope is scaling/stabilization.
 - **`dist/` drift.** The committed bundle is the artifact HACS ships. Forgetting
   to rebuild `dist/` after a source change ships stale behavior — always rebuild
   and commit it together.
